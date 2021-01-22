@@ -18,7 +18,7 @@ class Auth0OAuth2(BaseOAuth2):
     """
     name = "auth0"
 
-    REDIRECT_STATE = False
+    REDIRECT_STATE = True
     AUTHORIZATION_URL = 'https://{domain}/authorize'
     ACCESS_TOKEN_URL = 'https://{domain}/oauth/token'
     ACCESS_TOKEN_METHOD = 'POST'
