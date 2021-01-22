@@ -5,7 +5,7 @@ Auth0 backend.
 
 import logging
 from django.conf import settings
-from social.backends.oauth import BaseOAuth2
+from social_core.backends.oauth import BaseOAuth2
 
 __version__ = '0.1.2'
 
@@ -16,7 +16,7 @@ class Auth0OAuth2(BaseOAuth2):
     """
     Auth0 backend
     """
-    name = "oa2-auth0"
+    name = "auth0"
 
     REDIRECT_STATE = False
     AUTHORIZATION_URL = 'https://{domain}/authorize'
