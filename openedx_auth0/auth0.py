@@ -3,61 +3,42 @@
 Auth0 backend.
 """
 
-import logging
-from django.conf import settings
+from urllib import request
+from jose import jwt
 from social_core.backends.oauth import BaseOAuth2
 
-__version__ = '0.1.2'
 
-__author__ = 'Takashi NAGAI'
-
-
-class Auth0OAuth2(BaseOAuth2):
-    """
-    Auth0 backend
-    """
-    name = "auth0"
-
-    REDIRECT_STATE = False
-    AUTHORIZATION_URL = 'https://{domain}/authorize'
-    ACCESS_TOKEN_URL = 'https://{domain}/oauth/token'
+class Auth0(BaseOAuth2):
+    """Auth0 OAuth authentication backend"""
+    name = 'auth0'
+    SCOPE_SEPARATOR = ' '
     ACCESS_TOKEN_METHOD = 'POST'
-    REVOKE_TOKEN_URL = 'https://{domain}/logout'
-    REVOKE_TOKEN_METHOD = 'GET'
-    USER_DATA_URL = 'https://{domain}/userinfo'
-
-    def _get_base_uri(self):
-        return settings.FEATURES.get('AUTH0_DOMAIN', u'auth0.com')
+    REDIRECT_STATE = False
+    EXTRA_DATA = [
+        ('picture', 'picture'),
+        ('email', 'email')
+    ]
 
     def authorization_url(self):
-        return self.AUTHORIZATION_URL.format(domain=self._get_base_uri())
+        return 'https://' + self.setting('DOMAIN') + '/authorize'
 
     def access_token_url(self):
-        return self.ACCESS_TOKEN_URL.format(domain=self._get_base_uri())
-
-    def revoke_token_url(self, token, uid):
-        return self.REVOKE_TOKEN_URL.format(domain=self._get_base_uri())
-
-    def get_user_details(self, response):
-        """Return user details from Auth0 account"""
-        fullname, first_name, last_name = self.get_user_names(
-            response.get('name', u''),
-            response.get('first_name', u''),
-            response.get('last_name', u'')
-        )
-        return {'username': response.get('nickname', response.get('name')),
-                'email': response.get('email', u''),
-                'fullname': fullname,
-                'first_name': first_name,
-                'last_name': last_name,
-                }
-
-    def user_data(self, access_token, *args, **kwargs):
-        """Loads user data from Auth0"""
-        params = dict()
-        params['access_token'] = access_token
-        return self.get_json(self.USER_DATA_URL.format(domain=self._get_base_uri()), params=params)
+        return 'https://' + self.setting('DOMAIN') + '/oauth/token'
 
     def get_user_id(self, details, response):
-        """ Get the permanent ID for this user from Auth0. """
-        return response.get('sub', u'')
+        """Return current user id."""
+        return details['user_id']
+
+    def get_user_details(self, response):
+        # Obtain JWT and the keys to validate the signature
+        id_token = response.get('id_token')
+        jwks = request.urlopen('https://' + self.setting('DOMAIN') + '/.well-known/jwks.json')
+        issuer = 'https://' + self.setting('DOMAIN') + '/'
+        audience = self.setting('KEY')  # CLIENT_ID
+        payload = jwt.decode(id_token, jwks.read(), algorithms=['RS256'], audience=audience, issuer=issuer)
+
+        return {'username': payload['nickname'],
+                'first_name': payload['name'],
+                'picture': payload['picture'],
+                'user_id': payload['sub'],
+                'email': payload['email']}
